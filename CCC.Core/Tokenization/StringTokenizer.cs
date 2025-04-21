@@ -4,16 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-public class StringTokenizer
+public class StringTokenizer(string input)
 {
-    private int _position;
-    private readonly string _input;
-
-    public StringTokenizer(string input)
-    {
-        _input = input?.Trim() ?? string.Empty;
-        _position = 0;
-    }
+    private int _position = 0;
+    private readonly string _input = input?.Trim() ?? string.Empty;
 
     public List<Token> Tokenize()
     {
@@ -148,7 +142,7 @@ public class StringTokenizer
         char current = _input[_position];
         char? next = _position + 1 < _input.Length ? _input[_position + 1] : null;
 
-        // Handle multi-character operators
+        // Handle multi-character operators first
         if (next.HasValue && IsMultiCharOperator(current, next.Value))
         {
             string op = new string(new[] { current, next.Value });
@@ -156,8 +150,14 @@ public class StringTokenizer
             return new Token(TokenType.Operator, op);
         }
 
-        _position++;
-        return new Token(TokenType.Operator, current.ToString());
+        // Handle single-character operators
+        if (IsOperatorCharacter(current))
+        {
+            _position++;
+            return new Token(TokenType.Operator, current.ToString());
+        }
+
+        throw new InvalidOperationException($"Invalid operator sequence at position {_position}");
     }
 
     private Token ReadParenthesis()
@@ -171,16 +171,17 @@ public class StringTokenizer
 
     private static bool IsOperatorCharacter(char c)
     {
-        return c == '>' || c == '<' || c == '=' || c == '!' || c == '&' || c == '|';
+        return c == '>' || c == '<' || c == '=' || c == '!' || c == '&' || c == '|' || 
+               c == '*' || c == '/' || c == '+' || c == '-';
     }
-
+    
     private static bool IsMultiCharOperator(char first, char second)
     {
-        return (first == '>' && second == '>') ||
-               (first == '<' && second == '<') ||
-               (first == '=' && second == '=') ||
-               (first == '!' && second == '=') ||
-               (first == '&' && second == '&') ||
-               (first == '|' && second == '|');
+        return (first == '>' && second == '=') ||  // >=
+               (first == '<' && second == '=') ||  // <=
+               (first == '=' && second == '=') ||  // ==
+               (first == '!' && second == '=') ||  // !=
+               (first == '&' && second == '&') ||  // &&
+               (first == '|' && second == '|');    // ||
     }
 }

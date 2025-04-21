@@ -1,11 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Core.Parsing.Ast;
 using Core.Tokenization;
 
 namespace Core.Parsing;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 public class Parser
 {
@@ -20,114 +19,102 @@ public class Parser
 
     public ExpressionNode Parse()
     {
-        var outputQueue = new Queue<ExpressionNode>();
-        var operatorStack = new Stack<Token>();
+        var expression = ParseExpression();
+        if (HasMoreTokens())
+        {
+            throw new InvalidOperationException("Unexpected tokens at end of expression");
+        }
+        return expression;
+    }
+
+    private ExpressionNode ParseExpression(int minPrecedence = 0)
+    {
+        var left = ParsePrimary();
 
         while (HasMoreTokens())
         {
             var token = PeekToken();
+            if (token.Type != TokenType.Operator) break;
 
-            if (IsLiteral(token))
-            {
-                outputQueue.Enqueue(new LiteralNode(token.Type, token.Value));
-                ConsumeToken();
-            }
-            else if (token.Type == TokenType.Identifier)
-            {
-                outputQueue.Enqueue(new LiteralNode(token.Type, token.Value));
-                ConsumeToken();
-            }
-            else if (token.Type == TokenType.Operator)
-            {
-                while (operatorStack.Count > 0 && 
-                       operatorStack.Peek().Type == TokenType.Operator &&
-                       GetPrecedence(operatorStack.Peek().Value) >= GetPrecedence(token.Value))
-                {
-                    outputQueue.Enqueue(CreateOperatorNode(operatorStack.Pop()));
-                }
-                operatorStack.Push(token);
-                ConsumeToken();
-            }
-            else if (token.Type == TokenType.LeftParenthesis)
-            {
-                operatorStack.Push(token);
-                ConsumeToken();
-            }
-            else if (token.Type == TokenType.RightParenthesis)
-            {
-                while (operatorStack.Count > 0 && operatorStack.Peek().Type != TokenType.LeftParenthesis)
-                {
-                    outputQueue.Enqueue(CreateOperatorNode(operatorStack.Pop()));
-                }
+            var precedence = GetPrecedence(token.Value);
+            if (precedence < minPrecedence) break;
 
-                if (operatorStack.Count == 0)
-                {
-                    throw new InvalidOperationException("Mismatched parentheses");
-                }
-
-                operatorStack.Pop(); // Discard the left parenthesis
-                ConsumeToken();
-            }
+            ConsumeToken();
+            var right = ParseExpression(precedence + 1);
+            left = new BinaryExpressionNode(left, token.Value, right);
         }
 
-        // No more tokens to read, pop remaining operators
-        while (operatorStack.Count > 0)
-        {
-            if (operatorStack.Peek().Type == TokenType.LeftParenthesis)
-            {
-                throw new InvalidOperationException("Mismatched parentheses");
-            }
-            outputQueue.Enqueue(CreateOperatorNode(operatorStack.Pop()));
-        }
-
-        // Build the AST from the output queue
-        var astStack = new Stack<ExpressionNode>();
-        while (outputQueue.Count > 0)
-        {
-            var node = outputQueue.Dequeue();
-            if (node is BinaryExpressionNode binaryNode && binaryNode.Left == null)
-            {
-                // Operator node - pop operands
-                if (astStack.Count < 2)
-                {
-                    throw new InvalidOperationException("Invalid expression");
-                }
-                var right = astStack.Pop();
-                var left = astStack.Pop();
-                binaryNode.Left = left;
-                binaryNode.Right = right;
-            }
-            astStack.Push(node);
-        }
-
-        if (astStack.Count != 1)
-        {
-            throw new InvalidOperationException("Invalid expression");
-        }
-
-        return astStack.Pop();
+        return left;
     }
 
+    private ExpressionNode ParsePrimary()
+    {
+        var token = PeekToken();
+
+        // Handle negation operator
+        if (token.Type == TokenType.Operator && token.Value == "!")
+        {
+            ConsumeToken();
+            var operand = ParsePrimary();
+            return new UnaryExpressionNode("!", operand);
+        }
+
+        if (token.Type == TokenType.LeftParenthesis)
+        {
+            ConsumeToken();
+            var expression = ParseExpression();
+            if (PeekToken().Type != TokenType.RightParenthesis)
+            {
+                throw new InvalidOperationException("Expected closing parenthesis");
+            }
+            ConsumeToken();
+            return new ParenthesizedExpressionNode(expression);
+        }
+
+        if (IsLiteral(token) || token.Type == TokenType.Identifier)
+        {
+            ConsumeToken();
+            return new LiteralNode(token.Type, token.Value);
+        }
+
+        throw new InvalidOperationException($"Unexpected token: {token.Type} '{token.Value}'");
+    }
+    
     private ExpressionNode CreateOperatorNode(Token token)
     {
         return new BinaryExpressionNode(null, token.Value, null);
     }
 
+    private static readonly HashSet<string> ValidOperators = new()
+    {
+        "==", "!=", "<", ">", "<=", ">=", "&&", "||", 
+        "+", "-", "*", "/", "!"  // Add mathematical operators
+    };
+
     private int GetPrecedence(string op)
     {
+        if (!ValidOperators.Contains(op))
+        {
+            var suggestion = op == "=" ? " Did you mean '=='?" : "";
+            throw new InvalidOperationException(
+                $"Unsupported operator '{op}'. Supported operators are: {string.Join(", ", ValidOperators)}.{suggestion}");
+        }
+
         return op switch
         {
             "||" => 1,
             "&&" => 2,
             "==" or "!=" => 3,
             "<" or ">" or "<=" or ">=" => 4,
-            _ => 0
+            "+" or "-" => 5,
+            "*" or "/" => 6,
+            _ => throw new InvalidOperationException($"Unknown operator: {op}")
         };
     }
 
     private bool IsLiteral(Token token)
     {
-        return token.Type == TokenType.Number || 
+        return token.Type == TokenType.Number ||
                token.Type == TokenType.String ||
                token.Type == TokenType.Boolean ||
                token.Type == TokenType.Null;
@@ -144,6 +131,7 @@ public class Parser
         {
             throw new InvalidOperationException("Unexpected end of input");
         }
+
         return _tokens[_currentTokenIndex];
     }
 

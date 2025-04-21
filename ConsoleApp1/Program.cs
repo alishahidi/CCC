@@ -7,27 +7,53 @@ public class Class1
     {
         var compiler = new ExpressionCompiler();
 
-// Example 1: Simple comparison
-        var result1 = compiler.CompileToCSharp("OrderAmount > 500");
-// Output: "OrderAmount > 500"
+        List<string> experssions = new List<string>
+        {
+            "OrderAmount > 500",
+            "level == \"Gold\"", 
+            "(Age >= 18 && Status == \"Active\") || IsAdmin",
+            "IsValid == true && HasLicense != false",
+            "Age > 21",
+            "Price <= 100.50",
+            "IsActive == true",
+            "Name == \"John\"",
+            "Department != \"HR\"",
+            "Age > 18 && IsStudent",
+            "IsPremium || Balance >= 1000",
+            "!(IsBlocked)",
+            "(Age >= 21 || IsVeteran) && IsVerified",
+            "A && (B || C)",
+            "((A && B) || C) && D",
+            "(CreditScore > 700 && Income >= 50000) || DownPayment >= 0.2",
+            "(Status == \"Gold\" && YearsMember > 5) || IsEmployee",
+            "42",
+            "true",
+            "\"hello\"",
+            "Age == ",
+            "A > > B",
+            "MiddleName == null",
+            "Result != null && Result > 0",
+            "(Total * 1.08) > 100",
+            "Quantity * UnitPrice - Discount > 500"
+        };
 
-// Example 2: String comparison
-        var result2 = compiler.CompileToCSharp("level == \"Gold\"");
-// Output: "level == \"Gold\""
-
-// Example 3: Complex logical expression
-        var result3 = compiler.CompileToCSharp("(Age >= 18 && Status == \"Active\") || IsAdmin");
-// Output: "(Age >= 18 && Status == \"Active\") || IsAdmin"
-
-// Example 4: With boolean literals
-        var result4 = compiler.CompileToCSharp("IsValid == true && HasLicense != false");
-// Output: "IsValid == true && HasLicense != false"
-
-        System.Console.WriteLine(result1);
-        System.Console.WriteLine(result2);
-        System.Console.WriteLine(result3);
-        System.Console.WriteLine(result4);
-
+        foreach (var exp in experssions)
+        {
+            try
+            {
+                Console.WriteLine("---------------------------------------");
+                System.Console.WriteLine(compiler.CompileToCSharp(exp));
+                Console.WriteLine("---------------------------------------\n");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("*************************************************");
+                Console.WriteLine("Err: " + exp);
+                Console.WriteLine(e);
+                Console.WriteLine("*************************************************\n");
+            }
+        }
+        
         Console.ReadKey();
     }
 }

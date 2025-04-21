@@ -1,10 +1,8 @@
 namespace Core.Parsing.Ast;
 
-public class BinaryExpressionNode : ExpressionNode
+public class BinaryExpressionNode(ExpressionNode left, string op, ExpressionNode right) : ExpressionNode
 {
-    public ExpressionNode Left { get; set; }
-    public string Operator { get; }
-    public ExpressionNode Right { get; set; }
-    public BinaryExpressionNode(ExpressionNode left, string op, ExpressionNode right)
-        => (Left, Operator, Right) = (left, op, right);
+    public ExpressionNode Left { get; set; } = left;
+    public string Operator { get; } = op;
+    public ExpressionNode Right { get; set; } = right;
 }   
